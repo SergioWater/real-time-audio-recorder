@@ -1,25 +1,26 @@
-# Real-Time Audio Processing
+Live Translation App with PyAudio & Whisper
 
-This project is designed to capture audio from a microphone in real time and process it using a modular and highly optimized Python codebase. The captured audio is fed to a processing module, making it suitable for integration with AI models or other real-time applications.
+This repository contains a simple real-time transcription (and optional translation) application using PyAudio for capturing audio in real-time and OpenAI Whisper for transcription. It is set up to chunk audio every few seconds and produce partial transcripts until you press Ctrl+C, at which point it will finalize the output.
 
-This project continuously records audio in real time, sends each chunk to an AI model, **and** saves the entire recording as a WAV file in `saved_audio/` when you stop. Perfect if you want to capture data and also do on-the-fly processing or training with an AI module.
+Table of Contents
+	1.	Features
+	2.	Project Structure
+	3.	Installation
+	•	Create a Conda Environment
+	•	Install Dependencies
+	•	PyAudio on Apple Silicon (M1/M2)
+	4.	Usage
+	5.	Troubleshooting
+	6.	License
 
+  Features
+	•	Live Audio Capture: Uses PyAudio to capture audio in real time.
+	•	Partial Transcriptions: Every few seconds, a chunk of audio is sent to Whisper for transcription.
+	•	Final Transcription: After you press Ctrl+C, a final transcription runs on the entire audio buffer.
+	•	Model Customization: You can switch Whisper models (e.g., tiny, base, small, medium, large) for speed or accuracy.
+	•	Translation vs. Transcription: Configure Whisper’s task="translate" if you want to force translation into English from another language.
 
-## Features
-
-- **Real-Time Audio Capture**: Captures audio using PyAudio with minimal latency.
-- **Modular Design**: The codebase is divided into clear modules:
-  - `config.py` for audio settings.
-  - `audio_interface.py` for managing the audio stream and callbacks.
-  - `audio_processor.py` for processing audio data (e.g., sending to an AI model).
-- **Thread-Safe Queue**: Ensures smooth handling of audio data between capture and processing.
-- **Extensible**: Easily adapt the `AudioProcessor` class to include custom logic like AI inference or audio transformations.
-
----
-
-## Project Structure
-
-live_translation_app/
+  live_translation_app/
 ├── main.py
 ├── requirements.txt
 └── audio_module/
@@ -28,30 +29,26 @@ live_translation_app/
     ├── audio_interface.py
     ├── audio_processor.py
     └── my_ai_model.py
-## Getting Started
 
-### Prerequisites
+  •	main.py: Entry point that starts/stops the audio capture.
+	•	requirements.txt: Lists core Python packages.
+	•	audio_module/: Contains modules for audio recording and processing.
+	•	config.py: Audio configuration (sample rate, chunk size, etc.).
+	•	audio_interface.py: Manages PyAudio’s stream, captures data in callback mode, and launches a background thread to process audio.
+	•	audio_processor.py: Accumulates raw audio, periodically transcribes with Whisper, and saves final audio.
+	•	my_ai_model.py: Placeholder for additional AI features (if needed).
 
-- Python 3.7 or later
-- A microphone connected to your computer
-- Required Python libraries:
-  - `pyaudio` (for capturing audio)
+  Installation
 
-### Installation
+1. Create a Conda Environment
 
-1. Clone the repository:
-   ```bash
-   git clone <repository_url>
-   cd my_project
+conda create -n voice_2 python=3.10
+conda activate voice_2
 
-   pip install -r requirements.txt
+2. Install Dependencies
 
-   python main.py
+Make sure to install the packages listed in requirements.txt. Typically:
+pip install -r requirements.txt
 
-###Configuration
-
-All audio settings are stored in audio_module/config.py. You can adjust the following parameters:
-	•	CHUNK: The number of audio samples per chunk (default: 1024).
-	•	FORMAT: Audio sample format (default: pyaudio.paInt16).
-	•	CHANNELS: Number of audio channels (1 for mono, 2 for stereo).
-	•	RATE: Sampling rate in Hz (default: 16000).
+You may also need ffmpeg at the system or conda level for Whisper to handle audio:
+conda install ffmpeg
