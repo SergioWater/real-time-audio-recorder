@@ -19,17 +19,15 @@ This project continuously records audio in real time, sends each chunk to an AI 
 
 ## Project Structure
 
-my_project/
-├── README.md
-├── requirements.txt
+live_translation_app/
 ├── main.py
-├── saved_audio/
+├── requirements.txt
 └── audio_module/
-├── init.py
-├── config.py
-├── audio_processor.py
-└── audio_interface.py
-
+    ├── __init__.py
+    ├── config.py
+    ├── audio_interface.py
+    ├── audio_processor.py
+    └── my_ai_model.py
 ## Getting Started
 
 ### Prerequisites

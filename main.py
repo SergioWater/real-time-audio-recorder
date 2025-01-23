@@ -1,10 +1,5 @@
-"""
-Entry point. Creates an AudioInterface, starts the stream, and
-stops recording when the user presses Ctrl+C.
-"""
-
-from audio_module.audio_interface import AudioInterface
 import time
+from audio_module.audio_interface import AudioInterface
 
 def main():
     audio_interface = AudioInterface()

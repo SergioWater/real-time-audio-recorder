@@ -1,12 +1,8 @@
-"""
-Captures audio in real-time using PyAudio's callback mode and sends chunks
-to the AudioProcessor for storage/saving.
-"""
-
 import pyaudio
 import queue
 import threading
 import time
+
 from .config import CHUNK, FORMAT, CHANNELS, RATE
 from .audio_processor import AudioProcessor
 
@@ -21,33 +17,36 @@ class AudioInterface:
 
     def audio_callback(self, in_data, frame_count, time_info, status_flags):
         """
-        PyAudio calls this whenever new audio data is available.
-        We drop the data into our queue for the background processing thread.
+        PyAudio calls this function whenever new audio data is available.
+        We put that data into the queue so our background thread can process it.
         """
         self.audio_queue.put(in_data)
         return (None, pyaudio.paContinue)
 
     def start_stream(self):
         """
-        Opens the stream in callback mode and starts a background thread to process data.
+        Opens the audio stream in callback mode and starts a background thread.
         """
-        self.stream = self.p.open(format=FORMAT,
-                                  channels=CHANNELS,
-                                  rate=RATE,
-                                  input=True,
-                                  frames_per_buffer=CHUNK,
-                                  stream_callback=self.audio_callback)
+        self.stream = self.p.open(
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
+            input=True,
+            frames_per_buffer=CHUNK,
+            stream_callback=self.audio_callback
+        )
 
         self.stream.start_stream()
-        # Background thread reads from the queue and processes the data
+
+        # Background thread to fetch chunks from the queue and process them.
         self.processing_thread = threading.Thread(target=self._process_loop, daemon=True)
         self.processing_thread.start()
         print("[AudioInterface] Stream started.")
 
     def _process_loop(self):
         """
-        Continuously read audio chunks from the queue and pass them
-        to the AudioProcessor until stop_flag is set.
+        Continuously read audio chunks from the queue and pass them to the AudioProcessor
+        until stop_flag is set.
         """
         while not self.stop_flag:
             try:
@@ -59,7 +58,7 @@ class AudioInterface:
     def stop_stream(self):
         """
         Stop recording, join the thread, and close resources.
-        Also tells the AudioProcessor to save the audio to a file.
+        Save the final audio to a file and do a final transcription.
         """
         print("[AudioInterface] Stopping stream...")
         self.stop_flag = True
@@ -72,7 +71,7 @@ class AudioInterface:
             self.stream.close()
         self.p.terminate()
 
-        # Once everything is done, save the collected audio
+        # Save final audio and do a final transcription
         self.processor.save_audio_to_wav("saved_audio")
 
         print("[AudioInterface] Stream stopped and audio saved.")
