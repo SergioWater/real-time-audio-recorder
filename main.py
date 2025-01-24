@@ -1,6 +1,8 @@
 import time
+import sys
+import os
 from audio_module.audio_interface import AudioInterface
-
+sys.stderr = open(os.devnull, 'w')
 def main():
     audio_interface = AudioInterface()
     audio_interface.start_stream()
@@ -9,7 +11,7 @@ def main():
 
     try:
         while True:
-            time.sleep(0.5)
+            time.sleep(1)
     except KeyboardInterrupt:
         print("[Main] Ctrl+C detected. Stopping recording...")
         audio_interface.stop_stream()

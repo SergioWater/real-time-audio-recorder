@@ -6,7 +6,7 @@ class AudioProcessor:
     def __init__(self):
         # Load Whisper model. Possible options: "tiny", "base", "small", "medium", "large", etc.
         # Using "small" here for a balance of speed and accuracy.
-        self.model = whisper.load_model("small", device="cpu")
+        self.model = whisper.load_model("medium", device="cpu")
         
         # We'll store raw audio data here as bytes
         self.audio_buffer = b""
