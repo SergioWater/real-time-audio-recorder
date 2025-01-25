@@ -56,49 +56,59 @@ class AudioProcessor:
         # Load Whisper model (change "medium" to any size you prefer)
         self.model = whisper.load_model("medium", device="cpu")
         
-        # We'll store raw audio data here as bytes
-        self.audio_buffer = b""
+        # final_buffer holds ALL audio data from start to finish
+        self.final_buffer = b""
 
-        # How many bytes to accumulate before partial transcription:
-        # e.g. 5 seconds * 16000 samples/sec * 2 bytes/sample = 160000 bytes
-        self.partial_buffer_bytes = 5 * 16000 * 2
+        # partial_buffer is for partial, real-time transcriptions only
+        self.partial_buffer = b""
 
-        # We'll keep track of all recognized words here
+        # We'll keep track of all recognized words here (for partial + final)
         self.transcript_words = []
+
+        # This is how many bytes we need before we do a partial transcription.
+        # 5 seconds * 16000 samples/second * 2 bytes/sample = 160,000 bytes
+        self.partial_buffer_bytes = 5 * 16000 * 2
 
         print("[AudioProcessor] Initialized with Whisper model.")
 
     def process_chunk(self, audio_data: bytes):
         """
         Called for each chunk of audio data coming in.
-        We'll accumulate the data in memory and decide when to transcribe.
+        We'll accumulate the data in memory.
+        - final_buffer stores everything until we stop.
+        - partial_buffer accumulates data until it hits partial_buffer_bytes.
         """
-        self.audio_buffer += audio_data
+        # Keep the entire chunk for final WAV
+        self.final_buffer += audio_data
 
-        if len(self.audio_buffer) >= self.partial_buffer_bytes:
-            self._transcribe_and_reset_buffer()
+        # Also accumulate for partial transcription
+        self.partial_buffer += audio_data
 
-    def _transcribe_and_reset_buffer(self):
+        if len(self.partial_buffer) >= self.partial_buffer_bytes:
+            self._transcribe_and_reset_partial_buffer()
+
+    def _transcribe_and_reset_partial_buffer(self):
         """
-        Save the current buffer to a temporary WAV file, call Whisper to transcribe,
-        print out the partial transcript, then reset the buffer.
+        Save the current partial buffer to a temporary WAV file,
+        call Whisper to transcribe it, print out the partial transcript,
+        then reset the partial buffer.
         """
         print("[AudioProcessor] Transcribing partial audio...")
         temp_filename = "temp_partial.wav"
-        self._save_buffer_to_wav(temp_filename, self.audio_buffer)
+        self._save_buffer_to_wav(temp_filename, self.partial_buffer)
 
         # Transcribe (could set task="translate" if you want English translation)
         result = self.model.transcribe(temp_filename)
         text = result["text"]
-        capture_terminal_output(result["text"])
+        capture_terminal_output(text)
         print(f"[Partial Translation]: {text}")
 
         # 1) Split text into words and store them
         words = text.split()
         self.transcript_words.extend(words)
 
-        # 2) Clear the buffer
-        self.audio_buffer = b""
+        # 2) Clear the partial buffer
+        self.partial_buffer = b""
 
         # 3) Cleanup temp file
         if os.path.exists(temp_filename):
@@ -117,34 +127,41 @@ class AudioProcessor:
     def save_audio_to_wav(self, name):
         """
         When recording stops, save any remaining audio to a final file,
-        do a final transcription, then save the list of words to a text file.
+        and do a final transcription.
         """
         final_filename = f"{name}.wav"
         print(f"[AudioProcessor] Saving final audio to {final_filename}")
-        self._save_buffer_to_wav(final_filename, self.audio_buffer)
+
+        # Save all recorded audio (the entire session)
+        self._save_buffer_to_wav(final_filename, self.final_buffer)
 
         # Final transcription after recording is done
         result = self.model.transcribe(final_filename)
         text = result["text"]
         print(f"[Final Translation]: {text}")
 
-        # 1) Split text into words and store them
+        # Optionally store or split final words
         words = text.split()
         self.transcript_words.extend(words)
 
-        # 2) Save the entire list of words to a text file
-        os.makedirs(os.path.dirname(name), exist_ok=True)  # Ensure directory exists
-        transcript_txt_path = f"{name}_words.txt"
-        with open(transcript_txt_path, 'w', encoding='utf-8') as f:
-            # Each word on its own line
-            for w in self.transcript_words:
-                f.write(w + "\n")
+        # --------------------------------------------------------------------
+        # ------------- Remove or Comment Out Unwanted Text File -------------
+        # --------------------------------------------------------------------
+        # This was the code that created final_recording_words.txt or similar.
+        # Since you do NOT want that file, we comment it out.
 
-        print(f"[AudioProcessor] Saved list of words to {transcript_txt_path}")
+        # os.makedirs(os.path.dirname(name), exist_ok=True)  # Ensure directory exists
+        # transcript_txt_path = f"{name}_words.txt"
+        # with open(transcript_txt_path, 'w', encoding='utf-8') as f:
+        #     for w in self.transcript_words:
+        #         f.write(w + "\n")
+        # print(f"[AudioProcessor] Saved list of words to {transcript_txt_path}")
+        # --------------------------------------------------------------------
 
-        # Clear buffer and words list after final use (optional)
-        self.audio_buffer = b""
-        #self.transcript_words.clear()
+        # Clear buffers after final use (optional)
+        self.final_buffer = b""
+        self.partial_buffer = b""
+        # self.transcript_words.clear()
 
 # ------------------------------------------------------------------------
 # 4. AUDIO INTERFACE
