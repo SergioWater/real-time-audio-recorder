@@ -22,15 +22,8 @@ Table of Contents
 
   live_translation_app/
 ├── main.py
-├── requirements.txt
-└── audio_module/
-    ├── __init__.py
-    ├── config.py
-    ├── audio_interface.py
-    ├── audio_processor.py
-    └── my_ai_model.py
 
-  •	main.py: Entry point that starts/stops the audio capture.
+ 	•	main.py: Entry point that starts/stops the audio capture.
 	•	requirements.txt: Lists core Python packages.
 	•	audio_module/: Contains modules for audio recording and processing.
 	•	config.py: Audio configuration (sample rate, chunk size, etc.).
