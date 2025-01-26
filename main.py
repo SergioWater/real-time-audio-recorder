@@ -1,3 +1,4 @@
+import datetime
 import time
 import sys
 import os
@@ -231,10 +232,15 @@ class AudioInterface:
             self.stream.close()
         self.p.terminate()
 
-        # Save final audio and do a final transcription
-        self.processor.save_audio_to_wav("saved_audio/final_recording")
+        # Generate a timestamp (e.g. 20250124_153500)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Build a unique filename using that timestamp
+        unique_filename = f"saved_audio/final_recording_{timestamp}"
 
-        print("[AudioInterface] Stream stopped and audio saved.")
+        # Save final audio and do a final transcription
+        self.processor.save_audio_to_wav(unique_filename)
+
+        print(f"[AudioInterface] Stream stopped and audio saved as {unique_filename}.wav")
 
 # ------------------------------------------------------------------------
 # 5. MAIN SCRIPT
