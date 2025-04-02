@@ -1,0 +1,11 @@
+*.wav
+*.txt
+*.json
+*.log
+*.csv
+*.jsonl
+*.jsonl.gz
+
+transcripts/*
+saved_audio/*
+.venv/*
