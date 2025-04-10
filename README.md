@@ -1,18 +1,21 @@
-# Audio Transcription Tool
+# Audio Transcription and Summarization Tool
 
-A simple audio recording and transcription tool using OpenAI's Whisper model.
+A comprehensive audio recording, transcription, and summarization tool using OpenAI's Whisper model and BART for summarization.
 
 ## Features
 
-- Records audio in 5-minute segments
+- Records audio in 30-minute segments
+- Provides real-time transcription during recording
 - Transcribes audio using Whisper's "medium" model
-- Saves audio files and transcriptions with date and time information
-- Logs recording duration every 5 minutes
+- Creates abstractive summaries of transcriptions
+- Organizes files by year, month, and day
+- Displays progress with a visual interface
 
 ## Directory Structure
 
-- `saved_audio/` - Directory for storing recorded audio files
-- `transcriptions/` - Directory for storing transcribed text files
+- `saved_audio/YEAR_MONTH/` - Directories for storing recorded audio files
+- `transcriptions/YEAR_MONTH/` - Directories for storing transcribed text files
+- `summaries/YEAR/MONTH/DAY/` - Directories for storing abstractive summaries
 
 ## Installation
 
@@ -40,16 +43,10 @@ sudo apt-get install portaudio19-dev python3-pyaudio
 **Windows:**
 For Windows, PyAudio wheels are available and usually install without additional steps.
 
-3. Install PyAudio:
+3. Install all required dependencies:
 
 ```bash
-pip install PyAudio
-```
-
-4. Install the remaining dependencies:
-
-```bash
-pip install -r requirements.txt
+pip install PyAudio numpy openai-whisper transformers torch
 ```
 
 ### Troubleshooting PyAudio Installation
@@ -67,22 +64,52 @@ If you're using Python 3.12 and encounter `AttributeError: module 'pkgutil' has 
 
 ## Usage
 
-Run the script with:
+### Recording and Transcription
+
+Run the main script for audio recording and live transcription:
 
 ```bash
 python main.py
 ```
 
-To stop recording, press `Ctrl+C`.
+This will:
+1. Record 30 minutes of audio
+2. Provide live transcription during recording
+3. Save both the audio file and transcript in month-based folders
+4. Show a progress bar with continuous updates
 
-## Output
+To stop recording early, press `Ctrl+C`.
 
-- Audio files are saved in the `saved_audio/` directory with filenames like `Monday_2023-09-25_14-30-00.wav`
-- Transcriptions are saved in the `transcriptions/` directory with matching filenames
+### Summarization
+
+To generate abstractive summaries of your transcriptions, run:
+
+```bash
+# Summarize all transcription files
+python summarize.py
+
+# Summarize a specific transcription file
+python summarize.py transcriptions/2024_April/Monday_2024-04-02_14-30-00.txt
+```
+
+The summarization script will:
+1. Process transcript files (either all or one specific file)
+2. Create year/month/day-based directories
+3. Generate abstractive summaries using BART
+4. Save summaries in the organized directory structure
+5. Show a preview of each summary
+
+## Output Files
+
+- **Audio files**: `saved_audio/2024_April/Monday_2024-04-02_14-30-00.wav`
+- **Transcriptions**: `transcriptions/2024_April/Monday_2024-04-02_14-30-00.txt`
+- **Summaries**: `summaries/2024/April/02/Monday_2024-04-02_14-30-00_summary.txt`
 
 ## Requirements
 
 - Python 3.7+ (Python 3.11 or earlier recommended for better compatibility)
-- OpenAI Whisper
-- PyAudio
-- NumPy 
+- OpenAI Whisper (for transcription)
+- PyAudio (for recording)
+- NumPy (for audio processing)
+- Transformers (for summarization)
+- PyTorch (for summarization model) 
