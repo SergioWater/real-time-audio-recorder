@@ -1,5 +1,6 @@
 *.wav
 *.txt
+!requirements.txt
 *.json
 *.log
 *.csv
@@ -9,3 +10,6 @@
 transcripts/*
 saved_audio/*
 .venv/*
+.env
+__pycache__/
+*.zip

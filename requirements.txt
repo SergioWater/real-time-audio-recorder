@@ -1,0 +1,8 @@
+openai-whisper==20231117
+numpy>=1.20.0
+# PyAudio is commented out because it might need special installation steps
+# PyAudio==0.2.13 
+
+# Dependencies for Gemini summarisation
+google-genai
+python-dotenv

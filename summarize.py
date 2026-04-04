@@ -1,158 +1,162 @@
-from transformers import pipeline, T5Tokenizer, T5ForConditionalGeneration
+from google import genai
 import os
 import sys
 import re
 import datetime
 import calendar
-import glob
+from dotenv import load_dotenv
+
+# Load variables from .env file
+load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+GEMINI_MODEL = "gemini-1.5-flash"
+SUMMARY_PROMPT = (
+    "Summarize the following lecture/lesson transcript into concise notes "
+    "with key points and takeaways:\n\n"
+)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def create_summary_directory(year, month, day):
     """
-    Create directory structure for summaries based on date
-    Returns the path to the directory
+    Create directory structure for summaries based on date.
+    Returns the path to the directory.
     """
-    # Get month name
     month_name = calendar.month_name[month]
-    
-    # Create directory structure: summaries/YEAR/MONTH/DAY
     summary_dir = os.path.join("summaries", f"{year}", f"{month_name}", f"{day:02d}")
     os.makedirs(summary_dir, exist_ok=True)
-    
     return summary_dir
+
 
 def extract_date_from_filename(filename):
     """
-    Extract date information from the transcript filename
+    Extract date information from the transcript filename.
     Expected format: something_YYYY-MM-DD_HH-MM-SS.txt
     """
-    # Extract date pattern
     match = re.search(r'(\d{4}-\d{2}-\d{2})_', os.path.basename(filename))
-    
     if match:
-        date_str = match.group(1)
-        # Parse the date
-        year, month, day = map(int, date_str.split('-'))
+        year, month, day = map(int, match.group(1).split('-'))
         return year, month, day
-    
-    # If no date found in filename, use current date
+
     now = datetime.datetime.now()
     return now.year, now.month, now.day
 
-def abstractive_summarize(transcript_file, output_dir=None):
+
+# ---------------------------------------------------------------------------
+# Gemini summarisation
+# ---------------------------------------------------------------------------
+
+def gemini_summarize(transcript_file):
     """
-    Perform abstractive summarization on transcript file and save to organized directory.
+    Read a transcript file, send it to the Gemini API for summarisation,
+    and save the result to the summaries directory.
+
+    Returns (summary_text, output_path) on success, or (None, None) on failure.
     """
-    print(f"Loading transcript from: {transcript_file}")
-    
-    # Read the transcript file
+    # --- Read the transcript ------------------------------------------------
     try:
         with open(transcript_file, 'r') as f:
             full_text = f.read()
     except FileNotFoundError:
         print(f"Error: File {transcript_file} not found.")
-        return
-    
-    # Remove timestamp headers
+        return None, None
+
+    if not full_text.strip():
+        print(f"Warning: Transcript file {transcript_file} is empty. Skipping.")
+        return None, None
+
+    # Strip timestamp headers (e.g. "[Chunk 3 - 12:34:56]")
     clean_text = re.sub(r'\[Chunk \d+ - \d+:\d+:\d+\]\s*', '', full_text)
-    
-    print("Loading T5 model (this may take a moment)...")
-    # Load T5 model and tokenizer
-    model_name = "t5-base"  # Using T5 base model
-    tokenizer = T5Tokenizer.from_pretrained(model_name)
-    model = T5ForConditionalGeneration.from_pretrained(model_name)
-    summarizer = pipeline("summarization", model=model, tokenizer=tokenizer)
-    
-    print("Performing summarization...")
-    # Process in sections if text is long
-    max_chunk_length = 1024  # Maximum length for each chunk to process
-    min_chunk_length = 100   # Minimum length to consider summarization
-    
-    # Break text into manageable chunks
-    sections = [clean_text[i:i+max_chunk_length] for i in range(0, len(clean_text), max_chunk_length)]
-    
-    summaries = []
-    # Process every 10 chunks together
-    for i in range(0, len(sections), 10):
-        combined_chunks = " ".join(sections[i:i+10])
-        if len(combined_chunks.strip()) > min_chunk_length:
-            print(f"Summarizing chunks {i+1}-{min(i+10, len(sections))}/{len(sections)}...")
-            # Parameters for the summary generation
-            summary = summarizer(combined_chunks, 
-                                max_length=150,  # Increased max length for combined chunks
-                                min_length=50,   # Increased min length for combined chunks
-                                do_sample=False  # Deterministic generation
-                               )[0]["summary_text"]
-            summaries.append(summary)
-        else:
-            # For very short sections, just include them as-is
-            if combined_chunks.strip():
-                summaries.append(combined_chunks.strip())
-    
-    # Combine all summaries
-    final_summary = "\n\n".join(summaries)
-    
-    # Extract date from filename or use current date
+
+    # --- Call Gemini API ----------------------------------------------------
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("Error: GEMINI_API_KEY environment variable is not set. Skipping summarisation.")
+        return None, None
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        print(f"Sending transcript to Gemini ({GEMINI_MODEL}) for summarisation...")
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=SUMMARY_PROMPT + clean_text,
+        )
+        summary_text = response.text
+    except Exception as e:
+        print(f"Error calling Gemini API: {e}")
+        return None, None
+
+    # --- Save the summary ---------------------------------------------------
     year, month, day = extract_date_from_filename(transcript_file)
-    
-    # Create directory for summary based on date
     summary_dir = create_summary_directory(year, month, day)
-    
-    # Generate output filename
-    timestamp = datetime.datetime.now().strftime("%H-%M-%S")
-    original_filename = os.path.splitext(os.path.basename(transcript_file))[0]
-    output_file = os.path.join(summary_dir, f"{original_filename}_summary.txt")
-    
-    # Save the summary
-    with open(output_file, 'w') as f:
-        f.write(final_summary)
-    
+
+    original_name = os.path.splitext(os.path.basename(transcript_file))[0]
+    output_file = os.path.join(summary_dir, f"{original_name}_summary.txt")
+
+    try:
+        with open(output_file, 'w') as f:
+            f.write(summary_text)
+    except Exception as e:
+        print(f"Error saving summary file: {e}")
+        return None, None
+
     print(f"Summary saved to: {output_file}")
     print("\nSummary Preview:")
     print("-" * 40)
-    preview_length = min(300, len(final_summary))
-    print(final_summary[:preview_length] + ("..." if len(final_summary) > preview_length else ""))
+    preview = summary_text[:300] + ("..." if len(summary_text) > 300 else "")
+    print(preview)
     print("-" * 40)
-    
-    return final_summary, output_file
+
+    return summary_text, output_file
+
+
+# ---------------------------------------------------------------------------
+# Batch mode
+# ---------------------------------------------------------------------------
 
 def summarize_all_transcripts(transcriptions_dir="transcriptions"):
     """
-    Find and summarize all transcript files in the transcriptions directory
+    Find and summarise all transcript files in the transcriptions directory.
     """
-    # Get all text files recursively in transcriptions directory
     transcript_files = []
     for root, _, files in os.walk(transcriptions_dir):
         for file in files:
             if file.endswith(".txt") and not file.endswith("_summary.txt"):
                 transcript_files.append(os.path.join(root, file))
-    
+
     if not transcript_files:
         print(f"No transcript files found in {transcriptions_dir}")
         return
-    
+
     print(f"Found {len(transcript_files)} transcript files")
     print("-" * 40)
-    
-    # Process each transcript file
-    for i, transcript_file in enumerate(transcript_files):
-        print(f"Processing file {i+1}/{len(transcript_files)}: {transcript_file}")
-        abstractive_summarize(transcript_file)
+
+    for i, tf in enumerate(transcript_files):
+        print(f"Processing file {i+1}/{len(transcript_files)}: {tf}")
+        gemini_summarize(tf)
         print("-" * 40)
-    
-    print("All transcripts have been summarized!")
+
+    print("All transcripts have been summarised!")
+
+
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    # Check command line arguments
     if len(sys.argv) == 1:
-        # No arguments, summarize all transcripts
-        print("No specific transcript provided. Summarizing all transcripts...")
+        print("No specific transcript provided. Summarising all transcripts...")
         summarize_all_transcripts()
     elif len(sys.argv) == 2:
-        # Specific transcript file provided
-        transcript_file = sys.argv[1]
-        abstractive_summarize(transcript_file)
+        gemini_summarize(sys.argv[1])
     else:
         print("Usage:")
-        print("  python summarize.py                  # Summarize all transcripts")
-        print("  python summarize.py <transcript_file> # Summarize specific transcript")
-        sys.exit(1) 
+        print("  python summarize.py                  # Summarise all transcripts")
+        print("  python summarize.py <transcript_file> # Summarise specific transcript")
+        sys.exit(1)

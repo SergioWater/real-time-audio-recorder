@@ -6,6 +6,8 @@ import sys
 import calendar
 import queue
 
+from summarize import gemini_summarize
+
 # Create main directories
 os.makedirs("saved_audio", exist_ok=True)
 os.makedirs("transcriptions", exist_ok=True)
@@ -399,6 +401,12 @@ def main():
         
         if success:
             print(f"Session completed successfully. Transcription saved to {transcript_filename}")
+            # Auto-summarise the completed transcript
+            try:
+                print("\nAuto-summarising transcript with Gemini...")
+                gemini_summarize(transcript_filename)
+            except Exception as e:
+                print(f"Warning: Auto-summarisation failed: {e}")
         else:
             print("Session completed with errors.")
             
